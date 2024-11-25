@@ -36,3 +36,5 @@ Executar no terminal um por vez:
         - npm i axios
     
     // Criar uma conta no site themoviedb
+
+    // Começar o comando na linha 397
