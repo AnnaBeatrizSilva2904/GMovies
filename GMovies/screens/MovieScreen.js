@@ -8,20 +8,40 @@ import { styles, theme } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import Cast from '../components/cast';
 import MovieList from '../components/movieList';
+import Loading from '../components/loading';
+import { fetchMovieCredits, fetchMovieDetails, fetchSimilarMovies, image500 } from '../api/moviedb';
 
 var { width, height } = Dimensions.get('window');
 
 export default function MovieScreen() {
   const { params: item } = useRoute();
-  const [isFavorite, toggleFavorite] = useState(false);
   const navigation = useNavigation();
-  const [cast, setCast] = useState([1, 2, 3, 4, 5])
-  const [similarMovies, setSimilarMovies] = useState([1, 2, 3, 4, 5])
-  let movieName = "Joker: Folie à Deux";
+  const [isFavorite, toggleFavorite] = useState(false)
+  const [cast, setCast] = useState([])
+  const [similarMovies, setSimilarMovies] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [movie, setMovie] = useState({});
 
   useEffect(() => {
-    // call API
+    setLoading(true);
+    getMovieDetails(item.id);
+    getMovieCredits(item.id);
+    getSimilarMovies(item.id);
+    setLoading(false);
   }, [item])
+
+  const getMovieDetails = async id => {
+    const data = await fetchMovieDetails(id);
+    if (data) setMovie(data);
+  }
+  const getMovieCredits = async id => {
+    const data = await fetchMovieCredits(id);
+    if (data && data.cast) setCast(data.cast);
+  }
+  const getSimilarMovies = async id => {
+    const data = await fetchSimilarMovies(id);
+    if (data && data.results) setSimilarMovies(data.results);
+  }
 
   return (
     <ScrollView
@@ -33,64 +53,78 @@ export default function MovieScreen() {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.background} className="rounded-xl p-1">
             <ChevronLeftIcon size="28" strokeWidth={2.5} color="white" />
           </TouchableOpacity>
-		  <Text className="text-white text-3xl font-bold">
+          <Text className="text-white text-3xl font-bold">
             <Text style={styles.text}>GM</Text>ovies
           </Text>
           <TouchableOpacity onPress={() => toggleFavorite(!isFavorite)}>
             <HeartIcon size="36" color={isFavorite ? theme.background : "white"} />
           </TouchableOpacity>
         </SafeAreaView>
-        <View>
-          <Image
-            source={require('../assets/images/moviePoster2.jpg')}
-            style={{ width: width, height: height * 0.55 }}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(23,23,23,0.8)', 'rgba(23,23,23,1)']}
-            style={{ width, height: height * 0.4 }}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            className="absolute bottom-0"
-          />
-        </View>
-      
-        <View style={{ marginTop: -(height * 0.09) }} className="space-y-3">
-          {/* Nome do Filme */}
-          <Text className="text-white text-center text-3xl font-bold tracking-wider">
-            {movieName}
-          </Text>
+        {
+          loading ? (
+            <Loading />
+          ) : (
+            <>
+              <View>
+                <Image
+                  source={{ uri: image500(movie?.poster_path) }}
+                  style={{ width: width, height: height * 0.55 }}
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(23,23,23,0.8)', 'rgba(23,23,23,1)']}
+                  style={{ width, height: height * 0.4 }}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  className="absolute bottom-0"
+                />
+              </View>
+              <View style={{ marginTop: -(height * 0.09) }} className="space-y-3">
+                {/* Nome do Filme */}
+                <Text className="text-white text-center text-3xl font-bold tracking-wider">
+                  {movie?.title}
+                </Text>
 
-          {/* Status, Estreia, Tempo de Duração */}
-          <Text className="text-neutral-400 font-semibold text-base text-center">
-            Lancado • 2024 • 138 min
-          </Text>
+                {/* Status, Estreia, Tempo de Duração */}
+                {
+                  movie?.id ? (
+                    <Text className="text-neutral-400 font-semibold text-base text-center">
+                      {movie?.status} • {movie?.release_date?.split('-')[0]} • {movie?.runtime} min
+                    </Text>
+                  ) : null
+                }
 
-          {/* Gêneros */}
-          <View className="flex-row justify-center mx-4 space-x-2">
-            <Text className="text-neutral-400 font-semibold text-base text-center">
-              Drama  •
-            </Text>
-            <Text className="text-neutral-400 font-semibold text-base text-center">
-              Crime  •
-            </Text>
-            <Text className="text-neutral-400 font-semibold text-base text-center">
-              Thriller
-            </Text>
-          </View>
+                {/* Gêneros */}
+                <View className="flex-row justify-center mx-4 space-x-2">
+                  {
+                    movie?.genres?.map((genre, index) => {
+                      let showDot = index + 1 != movie.genres.length;
+                      return (
+                        <Text key={index} className="text-neutral-400 font-semibold text-base text-center">
+                          {genre?.name}  {showDot ? "•" : null}
+                        </Text>
+                      )
+                    })
+                  }
+                </View>
 
-          {/* Sinopse */}
-          <Text className="text-neutral-400 mx-4 tracking-wide">
-            Coringa 2 se passa depois dos acontecimentos do filme de 2019, após ser iniciado um movimento popular contra a elite de Gotham City, revolução esta, que teve o Coringa como seu maior representante. Preso no hospital psiquiátrico de Arkham, ele acaba conhecendo Harleen "Lee" Quinzel (Lady Gaga). A curiosidade mútua acaba se transformando em paixão e obsessão e eles desenvolvem um relacionamento romântico e doentio. Lee e Arthur embarcam em uma desventura alucinada, fervorosa e musical pelo submundo de Gotham City, enquanto o julgamento público d'O Coringa se desenrola, impactando toda a cidade e suas próprias mentes conturbadas.
-          </Text>
+                {/* Sinopse */}
+                <Text className="text-neutral-400 mx-4 tracking-wide">
+                  {movie?.overview}
+                </Text>
 
-          {/* Elenco */}
-          <Cast navigation={navigation} cast={cast} />
+                {/* Elenco */}
+                {cast.length > 0 && <Cast navigation={navigation} cast={cast} />} 
 
-          {/* Filmes Similares */}
-          <MovieList title="Filmes Similares" hideSeeAll={true} data={similarMovies} /> 
+                {/* Filmes Similares */}
+                {similarMovies.length > 0 && <MovieList title="Filmes Similares" hideSeeAll={true} data={similarMovies} />}
 
-        </View>
+              </View>
+            </>
+          )
+        }
+
       </View>
+
     </ScrollView>
   )
 }
